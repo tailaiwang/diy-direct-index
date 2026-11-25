@@ -8,6 +8,95 @@ account you control.
 > **Not investment or tax advice.** This is hobbyist software that can place real orders.
 > Wash-sale and tax treatment here is a model, not a ruling. Read the risks section.
 
+## Backtest results
+
+**Short version:** before tax, direct indexing tracks the S&P 500 and VOO almost exactly. After tax,
+harvesting put it about $13–16k ahead of VOO per $100k over 10 years. Every direct-indexing provider
+gets that same benefit, so choosing between them mostly comes down to the fee. Over 10 years,
+Wealthfront's 0.09% cost about $3.4k per $100k. That's all DIY saves, and in exchange you own the bugs.
+
+### Last 10 years: $100k invested Nov 28, 2016, valued Nov 24, 2026
+
+| Ending value | Before tax | After tax, sell everything | After tax, never sell |
+|---|---|---|---|
+| SPY | $380.2k | $313.5k | $380.2k |
+| VOO | $384.1k | $316.5k | $384.1k |
+| **DIY on Robinhood (this repo, $0 fee)** | **$382.5k** | **$330.4k** | **$401.7k** |
+| Wealthfront S&P 500 Direct (0.09%) | $379.1k | $327.0k | $398.3k |
+| Frec (0.10%) | $378.7k | $326.6k | $397.9k |
+| Public (0.19%) | $375.4k | $323.2k | $394.5k |
+| Schwab / Fidelity direct indexing (~0.40%) | $367.6k | $315.4k | $386.7k |
+
+How to read it:
+- **SPY and VOO** are their actual total returns with dividends reinvested. VOO beats SPY by its
+  lower fee.
+- **DIY** is the index's actual return with no fund fee, plus what harvesting added compared with a
+  matched no-harvest run of the same engine on the same data.
+  - Over the decade it harvested $34k of losses (1.5% of the portfolio a year).
+  - That was worth +$13.0k after tax if you sell everything at the end, or +$16.4k if you never
+    sell. "Never sell" means a step-up at death or donating the shares, so the deferred tax is never paid.
+  - Harvesting's extra trades cost about $2.7k before tax, which is why DIY ends slightly behind VOO
+    before tax.
+- **Other providers** are modeled as the same strategy minus their advisory fee. None of these
+  numbers are their real track records: several products didn't exist for most of the decade, and
+  each harvests differently. Fees come from third-party roundups as of Nov 2026, conflict between
+  sources, and vary by tier, so check current pricing.
+- **Taxes:** 40.8% short-term, 23.8% long-term. Harvested losses are assumed to offset gains you
+  have elsewhere. Dividend taxes are ignored because they're about the same for every row.
+- **Noise:** harvesting is path-dependent, and small code changes moved results by about ±$5k per $100k.
+
+Reproduce with `python scripts/compare_10y.py`. The full write-up with charts is in
+[`docs/report.html`](docs/report.html).
+
+### By start date ($100k, through Nov 2026)
+
+Harvesting is worth the most in a portfolio's first year or two and during drawdowns. Once every
+lot is above its cost basis, there's little left to harvest.
+
+| Start | Losses harvested in year 1 | TLH value, sell everything | TLH value, never sell | Wealthfront fee over the same period |
+|---|---|---|---|---|
+| Jan 2016 | 5.6% | $19.9k | $24.7k | $4.4k |
+| Jan 2018 | 8.5% | $16.9k | $22.2k | $2.5k |
+| Jan 2020 | 12.4% | $14.2k | $20.0k | $1.5k |
+| Jan 2022 | 16.6% | $6.8k | $11.1k | $0.7k |
+| Jan 2024 | 3.5% | $2.9k | $5.3k | $0.4k |
+
+Harvesting value scales with account size: about $0.9k at $5k, $4.8k at $25k and $193k at $1M
+(2016 start).
+
+### Other ways to build the portfolio ($100k, Jan 2016 start)
+
+| Construction | Avg. holdings | Tracking error today* | TLH value, sell everything | Long-term gains realized | Trades / yr |
+|---|---|---|---|---|---|
+| **All ~500, fractional (default)** | 332 | ~0% | $19.9k | $6.1k | 339 |
+| Optimized 200 | 187 | 0.32% | $21.9k | $31.9k | 301 |
+| Top 200 by size | 174 | 1.2% | $19.7k | $1.2k | 235 |
+| Top 100 by size | 94 | 2.6% | $18.1k | none | 124 |
+| Optimized 100 | 97 | 0.8% | $18.5k | $104.9k | 301 |
+| Top 50 by size | 48 | 4.4% | $10.2k | none | 53 |
+
+\* Expected tracking error vs the S&P 500 from the risk model, for a portfolio built on Nov 24, 2026.
+
+- Fewer names track worse, and the top-N lists tilt toward large caps.
+- Optimized portfolios realize far more long-term gains because each quarterly re-solve moves weight
+  between names you hold.
+- With fractional shares, holding every name is the simplest and best option, from about $5k up.
+
+Other settings tested:
+- **Broker FIFO lot selling** (whole-position harvesting only): $16.7k.
+- **3% drift budget:** $12.9k. Rebalancing that tightly realizes gains that cancel the harvesting.
+- **ETF overflow sleeve:** $13–16k.
+
+All results are in [`results/report.json`](results/report.json).
+
+### Data caveat
+
+The backtest uses free Yahoo data, which has no prices for about 25% of 2016 index members (mostly
+acquired or delisted companies). The raw engine output ended at $415k, far ahead of SPY, but the
+no-harvest run on the same data shows the same gap. So it comes from the missing data, not the
+strategy. That's why every number above is measured against a matched no-harvest run rather than
+taken from the raw output.
+
 ## How it works
 
 ```
