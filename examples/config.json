@@ -1,0 +1,16 @@
+{
+  "account_id": "REPLACE_WITH_MCP_ACCOUNT_ID",
+  "method": "full",
+  "min_position": 5.0,
+  "min_order": 1.0,
+  "exclude": [],
+  "tlh": true,
+  "harvest_threshold": 0.05,
+  "min_harvest": 1.0,
+  "min_harvest_frac": 0.0001,
+  "lot_mode": "fifo",
+  "sleeve": null,
+  "rebalance_days": 21,
+  "active_share_budget": 0.04,
+  "autopilot": false
+}

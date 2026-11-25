@@ -1,0 +1,18 @@
+[project]
+name = "diy-direct-index"
+version = "0.1.0"
+description = "DIY S&P 500 direct indexing with tax-loss harvesting, driven through Robinhood's MCP server"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = ["numpy", "pandas", "scipy", "cvxpy", "openpyxl", "pyarrow"]
+
+[project.optional-dependencies]
+backtest = ["yfinance", "matplotlib"]
+mcp = ["mcp>=1.9"]
+dev = ["pytest"]
+
+[project.scripts]
+ddi = "ddi.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ddi*"]

@@ -1,0 +1,9 @@
+{
+  "as_of": "2026-11-25",
+  "account_id": "MCP-ACCOUNT",
+  "cash": 25000.0,
+  "tax_lots": [],
+  "quotes": {"AAPL": 230.1, "MSFT": 480.2, "SPLG": 78.5},
+  "recent_orders": [],
+  "external_buys": [{"symbol": "NVDA", "date": "2026-11-18", "source": "Wealthfront S&P 500 Direct"}]
+}

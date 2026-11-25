@@ -1,0 +1,253 @@
+<title>DIY Direct Index Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (~70ch) with wide figures and tables breaking out to 980px. */
+:root {
+  --bg: #f7f8f7; --surface: #fcfcfb; --fg: #16191a; --fg-2: #4d5356; --muted: #7a8185;
+  --rule: #dfe3e2; --grid: #e7eae9; --accent: #1f6a4f; --accent-soft: #e3efe9; --warn: #a15c00; --warn-soft: #fbf1e2;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --display: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121514; --surface: #1a1d1c; --fg: #eef0ef; --fg-2: #b9c0bd; --muted: #8b9390;
+  --rule: #2c3230; --grid: #262b29; --accent: #5fc79c; --accent-soft: #1d2d26; --warn: #e6a64c; --warn-soft: #2d2416;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121514; --surface: #1a1d1c; --fg: #eef0ef; --fg-2: #b9c0bd; --muted: #8b9390;
+  --rule: #2c3230; --grid: #262b29; --accent: #5fc79c; --accent-soft: #1d2d26; --warn: #e6a64c; --warn-soft: #2d2416;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+.col { max-width: 70ch; }
+header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 8px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(30px, 5vw, 46px)/1.08 var(--display); letter-spacing: -.02em; margin: 12px 0 14px; text-wrap: balance; }
+h2 { font: 600 26px/1.2 var(--display); letter-spacing: -.01em; margin: 56px 0 12px; text-wrap: balance; }
+h3 { font: 600 18px/1.3 var(--display); margin: 28px 0 6px; }
+p, li { color: var(--fg); } .lede { font-size: 19px; color: var(--fg-2); }
+.meta { font: 13px/1.5 var(--mono); color: var(--muted); }
+a { color: var(--accent); }
+code { font: 13.5px var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+small { color: var(--muted); }
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 28px 0 8px; }
+.verdict div { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; min-width: 0; }
+.verdict b { display: block; font: 600 26px/1.15 var(--display); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+.verdict span { font-size: 14px; color: var(--fg-2); }
+.callout { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 20px 0; max-width: 70ch; }
+figure { margin: 24px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 16px 12px; }
+figcaption { font: 600 15px/1.3 var(--display); margin-bottom: 8px; }
+figcaption small { display: block; font: 400 13px/1.5 var(--body); margin-top: 4px; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.chart .tick { fill: var(--muted); font: 11px var(--mono); }
+.chart .axis-title { fill: var(--fg-2); font: 12px var(--body); }
+.chart .dlabel { fill: var(--fg); font: 500 12px var(--body); }
+.chart .vlabel { fill: var(--fg-2); font: 10.5px var(--mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--fg-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.tbl { overflow-x: auto; margin: 16px 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; min-width: 170px; }
+th { font: 600 11.5px/1.3 var(--body); color: var(--fg-2); text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
+tr:last-child td { border-bottom: 0; }
+table.plain td, table.plain th { text-align: left; white-space: normal; }
+.arch { font: 12.5px/1.45 var(--mono); background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; overflow-x: auto; white-space: pre; color: var(--fg-2); }
+.pill { display: inline-block; font: 500 11px/1 var(--mono); padding: 4px 7px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+ol.steps li, ul li { margin: 6px 0; }
+footer { margin-top: 64px; border-top: 1px solid var(--rule); padding-top: 20px; font-size: 13px; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Research memo · S&amp;P 500 direct indexing · Nov 2026</div>
+  <h1>Can you replace Wealthfront S&amp;P 500 Direct with Robinhood's MCP?</h1>
+  <p class="lede col">Yes, technically. Robinhood's agent MCP exposes tax lots, quotes, order history and order placement, which is everything a direct-indexing engine needs. The open-source design below backtests well. The catch is the money: the fee you'd save is small next to the tax-loss-harvesting value you'd be re-implementing, and a bug costs more than the fee.</p>
+  <p class="meta">Backtest: daily, Jan 2016 – Nov 2026, point-in-time S&amp;P 500 membership, free Yahoo data · code: <code>diy-direct-index/</code> · not investment or tax advice</p>
+</header>
+
+<div class="verdict">
+  <div><b>{{FEE_100K}}/yr</b><span>What the 0.09% Wealthfront fee costs on $100k. This is the entire saving from going DIY.</span></div>
+  <div><b>{{F_HOLD}}</b><span>Tax value TLH added per $100k invested in Jan 2016 (hold-forever case), vs {{F_FEE}} of Wealthfront fees over the same {{F_YEARS}} years.</span></div>
+  <div><b>{{TE5K_FULL}}</b><span>Ex-ante tracking error holding all ~{{N5K_FULL}} names at $5k. Fractional shares make small accounts work.</span></div>
+  <div><b>{{F_HY1}}</b><span>Losses harvested in the first year (2016 start), as % of portfolio. It decays after that as cost basis falls behind price.</span></div>
+</div>
+
+<section class="col">
+<h2>Bottom line</h2>
+<ul>
+  <li><b>DIY is feasible.</b> Robinhood's agent MCP has every primitive a direct-indexing engine needs: <code>get_equity_tax_lots</code>, <code>get_equity_quotes</code>, <code>get_equity_orders</code> (across all your Robinhood accounts), <code>review_equity_order</code> and <code>place_equity_order</code> with dollar-based fractional buys.</li>
+  <li><b>The fee saving is small.</b> At 0.09% the saving is {{FEE_100K}} a year per $100k. Across start dates from 2016 to 2022, the backtested tax value of harvesting was {{RATIO_LO}}–{{RATIO_HI}}× the Wealthfront fee over the same period. The harvesting is what makes direct indexing worth it, and Wealthfront already does it for you.</li>
+  <li><b>When DIY makes sense:</b> large balances where 0.09% becomes thousands a year, or wanting custom exclusions or tilts, or a harvest trigger Wealthfront won't expose. It also makes sense if you want to own and understand the machinery. If none of that applies, consider keeping Wealthfront for the core and running this repo on a small agentic account first.</li>
+  <li><b>Two unknowns decide how good DIY can be.</b> First, whether <code>place_equity_order</code> accepts specific tax lots. Second, what the MCP rate limits are. A 500-name portfolio makes {{F_TRADES}} trades a year in this backtest.</li>
+</ul>
+</section>
+
+<section>
+<h2 class="col">What Robinhood's MCP gives you</h2>
+<div class="col">
+<p>Robinhood launched its agentic-trading MCP server in beta on May 27, 2026. It is hosted at <code>https://agent.robinhood.com/mcp/trading</code> and you sign in with OAuth. The agent can read all your Robinhood accounts but can only trade in a dedicated "Robinhood MCP" individual account, funded with whatever you move into it. Trade approvals are off by default for external agents. Turn them on and every order needs a tap in the app.</p>
+</div>
+<div class="tbl"><table class="plain">
+<tr><th>Need</th><th>MCP tool</th><th>Status</th></tr>
+<tr><td>Cost basis per lot, acquisition date, ST/LT</td><td><code>get_equity_tax_lots</code></td><td><span class="pill">documented</span></td></tr>
+<tr><td>Prices for ~503 names</td><td><code>get_equity_quotes</code> (20 symbols/call → ~26 calls)</td><td><span class="pill">documented</span></td></tr>
+<tr><td>Wash-sale lookback across accounts</td><td><code>get_equity_orders</code> (reads all RH accounts)</td><td><span class="pill">documented</span></td></tr>
+<tr><td>Fractional eligibility</td><td><code>get_equity_tradability</code></td><td><span class="pill">documented</span></td></tr>
+<tr><td>Dry run each order</td><td><code>review_equity_order</code></td><td><span class="pill">documented</span></td></tr>
+<tr><td>Dollar-based buys, share-based sells</td><td><code>place_equity_order</code> (market, limit, stop)</td><td><span class="pill">documented</span></td></tr>
+<tr><td>Sell <i>specific</i> tax lots</td><td>Not documented for MCP. The app supports lot selection and a default disposal method.</td><td><span class="pill warn">unknown</span></td></tr>
+<tr><td>Rate limits, per-order/day caps</td><td>Not published</td><td><span class="pill warn">unknown</span></td></tr>
+<tr><td>Tool argument schemas</td><td>Not published. Discover with <code>ddi mcp-tools</code>.</td><td><span class="pill warn">unknown</span></td></tr>
+</table></div>
+<p class="col">For comparison, Wealthfront S&amp;P 500 Direct charges 0.09% with a $5,000 minimum. It holds "roughly 200–300" stocks at $5k and 400+ above $25k, harvests daily, and swaps into correlated stocks (KO → PEP). It reported about 0.63% tracking error and a 10.3% harvesting yield in 2025. Its tracking-error budget, harvest threshold and drift parameters are not disclosed.</p>
+</section>
+
+<section>
+<h2 class="col">Ways to compute the mix for a $X portfolio</h2>
+<div class="col">
+<p>Three construction methods are implemented. Each turns index weights into a holdable portfolio for a given account size. Live weights come from SPY's daily holdings file (float-adjusted, per share class). The chart shows ex-ante tracking error from a 15-factor statistical risk model fit to one year of daily returns, as of {{STATIC_DATE}}.</p>
+<ul>
+<li><b>Full replication with fractional shares</b>: every constituent at cap weight, dropping positions under a minimum dollar size. This is the default.</li>
+<li><b>Optimized sampling</b>: hold N names and solve a quadratic program to minimize tracking error against all ~500. With 200 names the ex-ante TE is {{TE_OPT200}}; with 100 it is {{TE_OPT100}}.</li>
+<li><b>Top-N by size</b>: simple but tilted toward mega-caps. Top 100 runs {{TE_TOP100}} TE, so avoid it.</li>
+</ul>
+</div>
+<figure>
+  <figcaption>Tracking error vs account size<small>Annualized ex-ante tracking error vs the S&amp;P 500. Fractional shares hold all names almost exactly from ~$5k. Whole-share-only accounts need ~$250k to get under 1% ({{TE100K_WHOLE}} at $100k, {{TE5K_WHOLE}} at $5k with only {{N5K_WHOLE}} names).</small></figcaption>
+  {{CHART1}}
+  {{LEGEND1}}
+</figure>
+</section>
+
+<section>
+<h2 class="col">The harvesting and rebalancing design</h2>
+<div class="col">
+<p>Each trading day the engine runs two phases: sells, then buys sized from the cash those sells free up.</p>
+<ol class="steps">
+<li><b>Harvest.</b> Find any lot at least 5% below its basis with a loss of at least 1bp of the portfolio ($10 at $100k). Skip the name if it was bought in the last 30 days in any reported account, unless the whole position is being sold. Deepest losses go first.</li>
+<li><b>Replace.</b> Move the sold weight to the 3 stocks whose daily returns correlated most with it over the past year. Each replacement can absorb at most 0.1–0.3% of the portfolio, and a harvest only happens if the replacements have room. An optional S&amp;P ETF "sleeve" can take the overflow instead. Across four start dates it harvested slightly more but tracked worse, so it is off by default. The sold name is blocked from purchase for 31 days.</li>
+<li><b>Trim drift, tax-aware.</b> Overweights are sold only from lots at a loss or with a gain of 0.5% or less. Long-term gain lots are sold only when look-through active share exceeds 10%, cheapest tax first. Short-term gains are never sold to rebalance.</li>
+<li><b>Deploy cash</b> into the largest underweights. Orders under $1 or 0.05% of the portfolio are skipped.</li>
+</ol>
+</div>
+<div class="callout"><b>What broke along the way, and why it matters for anyone building this.</b> The first version had four problems, all now fixed and covered by tests.
+<ul>
+<li>In the March 2020 crash nearly every stock crossed the threshold at once. Harvested weight cascaded onto the few names still buyable, and the portfolio lost 10% in 2020 while the index gained 18%.</li>
+<li>Harvesting only a stock's recent losing lots set its whole target to zero. The engine then sold its old, highly appreciated lots to "rebalance."</li>
+<li>Replacement capacity scaled with each name's weight, so NVDA, AAPL and MSFT soaked up harvested weight and were later trimmed at large long-term gains.</li>
+<li>Rebalancing tightly back to the index realized more long-term gains than harvesting saved. A loose drift budget was better after tax.</li>
+<li>A fixed $10 minimum loss meant $5k–$25k accounts almost never harvested. The minimum now scales with the account.</li>
+<li>Optimized and top-N portfolios swapped names at every re-solve and picked replacements outside the held set, which forced gain-realizing sells. Selection is now sticky and replacements come from the target set.</li>
+</ul></div>
+</section>
+
+<section>
+<h2 class="col">Backtest results</h2>
+<div class="col">
+<p>Every scenario is paired with a no-harvesting twin that has the same construction, size and dates. The <b>TLH value</b> columns are the difference in after-tax wealth between the two. Tax flows assume ST 40.8% / LT 23.8% and that losses offset other gains. Those flows are reinvested at the portfolio's return. "Sell all" liquidates at the end and pays LT tax on everything. "Hold" never sells, as with a step-up at death or donating shares. All figures are per $100k starting balance unless the row says otherwise.</p>
+</div>
+<figure>
+  <figcaption>Harvested losses by year<small>Losses harvested each calendar year as a share of that year's average portfolio value. Yields spike in drawdowns (2018 Q4, 2020, 2022) and in the first year or two after funding, then decay. 2016 start: {{F_CUM}} of the initial deposit harvested over the full period.</small></figcaption>
+  {{CHART2}}
+  {{LEGEND2}}
+</figure>
+<figure>
+  <figcaption>What harvesting is worth vs. what the fee costs<small>Per $100k invested at each start date, through Nov 2026. The fee bar is the 0.09%/yr Wealthfront fee compounded on the same path, which is the only thing DIY saves.</small></figcaption>
+  {{CHART3}}
+  {{LEGEND3}}
+</figure>
+<h3 class="col">Last 10 years: DIY vs SPY, VOO and Wealthfront</h3>
+<div class="col"><p>$100k invested {{C10_START}}, valued {{C10_END}}, dividends reinvested. SPY and VOO are their actual total returns. The DIY line is the index's return with no fund fee, plus exactly what harvesting added versus its matched no-harvest twin (which strips out the data noise). Over the decade it harvested {{C10_HARV}} of losses. Wealthfront is modeled as the same strategy minus its 0.09% fee ({{C10_WFFEE}} in total). That is a model: the product didn't exist in this form for most of the decade, and its real harvesting will differ. Taxes: 23.8% long-term rate on gains when sold; dividend taxes ignored (equal for all four).</p></div>
+<figure>
+  <figcaption>Dollars ahead of SPY after 10 years<small>Per $100k. "Sell everything" pays long-term tax on all gains at the end. "Never sell" assumes a step-up at death or donating the shares, so deferred tax is never paid.</small></figcaption>
+  {{CHART4}}
+  {{LEGEND4}}
+</figure>
+{{TBL10}}
+<p class="col">The raw DIY backtest ended at {{C10_RAW}} before tax, far above SPY. Don't believe it: the no-harvest twin shows the same gap, which comes from free data missing many companies that left the index. It is not skill.</p>
+<h3 class="col">By start date</h3>
+{{COHORT_TBL}}
+<h3 class="col">By construction method ($100k, Jan 2016 start)</h3>
+{{METHOD_TBL}}
+<p class="col">Fewer names harvest more per dollar because each position is larger and more volatile, but they track worse. The <b>TE vs SPY</b> column includes about {{F_BASE_TE}} of data noise. Even the no-harvest twin shows it, because free Yahoo data has no prices for many delisted members. The default (all names) ran {{F_TE}} against SPY with ~{{F_HOLDINGS}} holdings on average.</p>
+<h3 class="col">By account size</h3>
+{{SIZE_TBL}}
+<h3 class="col">Knobs</h3>
+{{KNOB_TBL}}
+<p class="col"><b>Read the knob table with care.</b> Harvesting is path-dependent: one different sale changes which lots exist for the next ten years. Re-running with tiny code changes moved these dollar figures by about ±$5k per $100k. Treat smaller differences between rows as noise. Three patterns held in every run:</p>
+<ul class="col">
+<li>A tight 3% drift budget realizes long-term gains that cancel most of the harvesting. Budgets of 10–20% did best.</li>
+<li>Whole-position (FIFO-safe) harvesting is worth less than lot-level harvesting, because a position's older, appreciated lots block the sale.</li>
+<li>Optimized portfolios realize far more long-term gains than full replication, because each quarterly re-solve shifts weights between held names. Use them only if order count forces you to.</li>
+</ul>
+</section>
+
+<section>
+<h2 class="col">Proposed open-source repo</h2>
+<div class="col">
+<p>The repo design rule: <b>the LLM is a courier, not a portfolio manager.</b> A deterministic, unit-tested Python engine decides every trade. The agent, or a headless MCP client, only moves data in and orders out, and every order goes through <code>review_equity_order</code> first.</p>
+</div>
+<div class="arch">diy-direct-index/
+├── ddi/
+│   ├── lots.py           tax-lot ledger, FIFO/HIFO/specific-ID, wash-sale both directions, basis adjustment
+│   ├── construct.py      full / top-N / optimized (factor risk model + QP), whole-share rounding
+│   ├── engine.py         daily sells → buys: harvest, capacity-gated replacements, optional ETF sleeve, tax-aware drift trims
+│   ├── live.py           snapshot.json → plan.json (sha256, guardrails) → fills → 30-day state
+│   ├── index_weights.py  live S&amp;P 500 weights from SPY's daily holdings file
+│   ├── broker/robinhood_mcp.py   headless OAuth MCP client (review-only unless --place)
+│   ├── backtest.py, data.py      daily simulator that runs the exact same engine
+│   └── cli.py            ddi weights | target | plan | record-fills | backtest | mcp-tools | mcp-run
+├── .claude/skills/ddi-rebalance/SKILL.md   the agent runbook for Claude Code + Robinhood MCP
+├── scripts/              fetch_data, run_backtests, sweep, static_te, build_report
+├── tests/                18 tests: wash sales, lot order, harvest gating, guardrails, live plan
+└── examples/config.json</div>
+<div class="col">
+<h3>Daily loop (agent mode)</h3>
+<ol class="steps">
+<li>Claude Code with <code>robinhood-trading</code> connected builds <code>snapshot.json</code>. The snapshot holds tax lots, cash, quotes for ~503 names, and 31 days of orders across all Robinhood accounts. It also includes your <code>external_buys.json</code> for Wealthfront, 401k and IRA purchases.</li>
+<li><code>ddi plan --phase sells</code> writes a hashed plan. Guardrails cap order size and daily turnover and refuse buys outside the index.</li>
+<li>Agent: <code>review_equity_order</code> per order, then you confirm, then <code>place_equity_order</code>, then poll fills, then <code>ddi record-fills</code>.</li>
+<li>Refresh the snapshot, then <code>ddi plan --phase buys</code> and repeat. Run once a day mid-session. Fractional orders fill only in regular hours.</li>
+</ol>
+<h3>Rollout I'd suggest</h3>
+<ol class="steps">
+<li>Run <code>ddi mcp-tools</code> to learn the real argument schemas and whether lot selection exists. Set <code>lot_mode</code> to match.</li>
+<li>Fund the MCP account with a small amount. Keep Trade approvals ON and run in review-only mode for a few weeks.</li>
+<li>Reconcile against Robinhood's realized P&amp;L (<code>get_realized_pnl</code>) monthly.</li>
+<li>Only then scale up. Migrating from Wealthfront: transfer whole shares in-kind to keep basis, and don't let both systems trade the same names during the overlap.</li>
+</ol>
+</div>
+</section>
+
+<section class="col">
+<h2>Limitations</h2>
+<ul>
+<li><b>Survivorship.</b> Yahoo has no prices for many removed or acquired members. 75% of Jan 2016 members are priceable, rising to 99% by 2026. The backtest universe skews toward survivors, which flatters returns and probably understates harvesting, since losers are missing.</li>
+<li><b>Weights</b> use SPY's current float-adjusted share counts held constant, and Yahoo counts for names no longer in the index. Buybacks and issuance are ignored. That's why tracking is reported against both a synthetic index from the same data and against real SPY.</li>
+<li><b>Taxes are modelled.</b> Losses are assumed fully usable: you need outside gains, and losses beyond $3k of ordinary income carry forward. Dividend taxes are ignored for both sides. Wash sales match on ticker only. State tax isn't modelled.</li>
+<li><b>Execution.</b> Fills at the close with 2 bps cost. Real fractional orders route to market makers. MCP rate limits and errors are unmodelled.</li>
+<li><b>Untested against the live server.</b> I did not connect to your Robinhood account. The headless client's argument names are guesses until <code>ddi mcp-tools</code> runs.</li>
+</ul>
+</section>
+
+<section class="col">
+<h2>Sources</h2>
+<ul>
+<li><a href="https://robinhood.com/newsroom/robinhood-is-now-open-to-agents/">Robinhood newsroom: Robinhood is now open to agents (May 27, 2026)</a></li>
+<li><a href="https://robinhood.com/us/en/support/articles/agentic-trading-overview/">Robinhood support: Onboarding an external agent</a> · <a href="https://robinhood.com/us/en/support/articles/trading-with-your-agent/">Trading with your agent (tool list)</a></li>
+<li><a href="https://robinhood.com/us/en/support/articles/tax-lots">Robinhood support: Tax lots</a> · <a href="https://robinhood.com/us/en/support/articles/fractional-shares">Fractional shares</a></li>
+<li><a href="https://research.wealthfront.com/whitepapers/s-p-500-direct/">Wealthfront S&amp;P 500 Direct methodology white paper</a> · <a href="https://www.wealthfront.com/blog/sp500direct-results/">first-year results</a></li>
+<li><a href="https://github.com/fja05680/sp500">fja05680/sp500: point-in-time S&amp;P 500 membership</a> · Yahoo Finance via yfinance · SSGA SPY daily holdings</li>
+</ul>
+</section>
+
+<footer>Generated from <code>results/</code> by <code>scripts/build_report.py</code>. Hobbyist research, not investment, tax or legal advice. Robinhood and Wealthfront are named only to describe their published products.</footer>
+</div>

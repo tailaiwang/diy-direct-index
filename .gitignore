@@ -1,0 +1,11 @@
+.venv/
+data/raw/
+__pycache__/
+*.pyc
+.ddi/
+results/*.parquet
+.pytest_cache/
+*.egg-info/
+data/fetch.log
+.DS_Store
+results/*.log
