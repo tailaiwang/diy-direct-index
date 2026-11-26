@@ -3,11 +3,18 @@
     Endpoint : https://agent.robinhood.com/mcp/trading  (streamable HTTP, OAuth sign-in)
     Account  : trades only in your dedicated "Robinhood MCP" account; reads all accounts.
 
-STATUS: scaffold, NOT verified against the live server. Robinhood documents the tool *names*
-(get_equity_tax_lots, review_equity_order, place_equity_order, ...) but not their argument or
-response schemas. Run `ddi mcp-tools` once to dump the real schemas, then adjust ARG_MAP /
-the extractors below. Until then, prefer the agent workflow in agent/ (Claude Code calls the
-MCP tools and this repo only computes the plan).
+STATUS: argument names checked against the live tool schemas (Nov 2026). Response shapes
+are not parsed here; the agent workflow (.claude/skills/ddi-rebalance) builds the snapshot.
+
+What the live schemas say
+- Accounts are addressed by `account_number`. Numbers are sent as strings.
+- `place_equity_order` / `review_equity_order` accept `tax_lots`: [{open_lot_id, quantity}]
+  for specific-lot SELLS (max 30 lots, quantities must sum to the order quantity, not allowed
+  with dollar_amount). Without it the broker uses FIFO.
+- `place_equity_order` takes `ref_id`, an idempotency key: retries with the same ref_id can't
+  place twice. Plans carry a deterministic ref_id per row.
+- Fractional and dollar_amount orders: type=market, time_in_force=gfd, regular hours only.
+- If trade approvals are on, a placed order goes to the Robinhood app for you to approve.
 
 Safety design
 - `execute()` defaults to review-only (calls review_equity_order, never place_equity_order).
@@ -30,17 +37,19 @@ from urllib.parse import parse_qs, urlparse
 
 URL = "https://agent.robinhood.com/mcp/trading"
 
-# Tool names come from Robinhood's support docs. Argument names are GUESSES - verify.
+# Internal name -> live argument name (verified against the server's schemas, Nov 2026).
+_ORDER = {"account": "account_number", "symbol": "symbol", "side": "side", "quantity": "quantity",
+          "dollars": "dollar_amount", "type": "type", "time_in_force": "time_in_force",
+          "market_hours": "market_hours", "tax_lots": "tax_lots"}
 ARG_MAP: dict[str, dict[str, str]] = {
-    "get_equity_tax_lots": {"account": "account_id", "symbol": "symbol"},
-    "get_equity_positions": {"account": "account_id"},
-    "get_equity_quotes": {"symbols": "symbols"},            # max 20 symbols per call
-    "get_equity_orders": {"account": "account_id"},
-    "get_portfolio": {"account": "account_id"},
-    "review_equity_order": {"account": "account_id", "symbol": "symbol", "side": "side",
-                            "quantity": "quantity", "dollars": "dollar_amount", "type": "order_type"},
-    "place_equity_order": {"account": "account_id", "symbol": "symbol", "side": "side",
-                           "quantity": "quantity", "dollars": "dollar_amount", "type": "order_type"},
+    "get_equity_tax_lots": {"account": "account_number", "symbol": "symbol"},
+    "get_equity_positions": {"account": "account_number"},
+    "get_equity_quotes": {"symbols": "symbols"},     # >20 symbols returns quotes but omits closes
+    "get_equity_orders": {"account": "account_number"},
+    "get_portfolio": {"account": "account_number"},
+    "get_trade_approval_setting": {"account": "account_number"},
+    "review_equity_order": _ORDER,
+    "place_equity_order": {**_ORDER, "ref_id": "ref_id"},
 }
 
 
@@ -152,11 +161,18 @@ class RobinhoodMCP:
             raise RuntimeError(f"guardrails: {plan['guardrail_errors']}")
         out = []
         for o in plan["orders"]:
-            common = dict(account=plan["account_id"], symbol=o["symbol"], side=o["side"], type="market")
-            size = {"quantity": o["quantity"]} if o["side"] == "sell" else {"dollars": o["dollars"]}
+            common = dict(account=plan["account_id"], symbol=o["symbol"], side=o["side"], type="market",
+                          time_in_force="gfd", market_hours="regular_hours")
+            if o["side"] == "sell":
+                size = {"quantity": f"{o['quantity']:.6f}", "tax_lots": o.get("tax_lots")}
+            else:
+                size = {"dollars": f"{o['dollars']:.2f}"}
             review = await self.call("review_equity_order", **common, **size)
             rec = {"order": o, "review": review}
-            if place:
-                rec["placed"] = await self.call("place_equity_order", **common, **size)
+            checks = review.get("order_checks") if isinstance(review, dict) else None
+            if place and checks:
+                rec["skipped"] = "review returned order_checks; not placing"
+            elif place:
+                rec["placed"] = await self.call("place_equity_order", **common, **size, ref_id=o["ref_id"])
             out.append(rec)
         return out

@@ -33,7 +33,8 @@ def test_harvest_plan_then_fills_block_rebuy(tmp_path: Path):
     snap = _snap(0.0, lots, quotes)
     plan = make_plan(snap, BENCH, Config(min_harvest=1, sleeve="SPY"), st, "sells", Guardrails())
     harv = [o for o in plan["orders"] if o["reason"] == "harvest"]
-    assert [o["symbol"] for o in harv] == ["S3"] and harv[0]["broker_lot_ids"] == ["LS3"]
+    assert [o["symbol"] for o in harv] == ["S3"] and harv[0]["tax_lots"] == [{"open_lot_id": "LS3", "quantity": "10.000000"}]
+    assert harv[0]["ref_id"].startswith("ddi-")
     new = record_fills(plan, [{"symbol": "S3", "side": "sell", "quantity": 10, "avg_price": 80.0,
                                "date": "2026-11-25"}], snap, st)
     assert new and new[0]["basis"] == 1000.0
@@ -63,3 +64,21 @@ def test_partial_snapshot_is_refused(tmp_path: Path):
     snap = _snap(10_000, quotes={"S0": 100.0, "S1": 100.0})
     plan = make_plan(snap, BENCH, Config(), tmp_path / "s.json", "buys", Guardrails())
     assert any("missing" in e for e in plan["guardrail_errors"])
+
+
+def test_specific_lot_sell_splits_at_30_lots_and_ref_ids_are_stable(tmp_path: Path):
+    # 40 losing lots of S3 -> two broker orders (30 + 10 lots), quantities summing exactly
+    lots = [{"symbol": "S3", "quantity": 0.25, "cost_per_share": 100.0, "acquired": "2026-06-01", "lot_id": f"L{k}"}
+            for k in range(40)]
+    lots += [{"symbol": s, "quantity": 10, "cost_per_share": 100.0, "acquired": "2026-06-01", "lot_id": f"L{s}"}
+             for s in BENCH.index if s != "S3"]
+    quotes = {s: 100.0 for s in BENCH.index}; quotes["S3"] = 80.0
+    cfg = Config(min_harvest=1, sleeve="SPY")
+    plan = make_plan(_snap(0.0, lots, quotes), BENCH, cfg, tmp_path / "a.json", "sells", Guardrails())
+    harv = [o for o in plan["orders"] if o["symbol"] == "S3"]
+    assert [len(o["tax_lots"]) for o in harv] == [30, 10]
+    for o in harv:
+        assert abs(sum(float(t["quantity"]) for t in o["tax_lots"]) - o["quantity"]) < 1e-9
+    again = make_plan(_snap(0.0, lots, quotes), BENCH, cfg, tmp_path / "b.json", "sells", Guardrails())
+    assert [o["ref_id"] for o in again["orders"]] == [o["ref_id"] for o in plan["orders"]]
+    assert len({o["ref_id"] for o in plan["orders"]}) == len(plan["orders"])

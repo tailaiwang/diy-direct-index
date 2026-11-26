@@ -11,7 +11,7 @@ snapshot.json
   "account_id": "<MCP agentic account id>",
   "cash": 1234.56,                                  # buying power usable for buys
   "tax_lots": [{"symbol": "AAPL", "quantity": 0.5, "cost_per_share": 180.1,
-                "acquired": "2026-01-02", "lot_id": "abc"}],
+                "acquired": "2026-01-02", "lot_id": "abc"}],   # lot_id = open_lot_id from get_equity_tax_lots
   "quotes": {"AAPL": 231.2, ...},                   # last trade / mid for every index name
   "recent_orders": [{"symbol": "AAPL", "side": "buy", "quantity": 1.0, "price": 230.0,
                      "date": "2026-11-20", "account_id": "<any RH account>"}],
@@ -25,6 +25,8 @@ import json
 from dataclasses import asdict
 from datetime import date, timedelta
 from pathlib import Path
+
+import math
 
 import pandas as pd
 
@@ -118,6 +120,46 @@ def save_state(path: Path, st: State, extra_loss_sales: list[dict] | None = None
 
 
 # ------------------------------------------------------------------ plan
+MAX_LOTS_PER_ORDER = 30   # Robinhood place_equity_order: tax_lots takes at most 30 lots
+
+
+def _floor6(x: float) -> float:
+    return math.floor(x * 1e6 + 1e-6) / 1e6
+
+
+def _sell_rows(o: Order, snapshot: dict, prices: pd.Series) -> list[dict]:
+    """One plan row per broker order. Specific-lot sells carry Robinhood's tax_lots payload
+    ({open_lot_id, quantity}, quantities summing to the order quantity) and are split into
+    chunks of at most 30 lots."""
+    base = {"symbol": o.sym, "side": "sell", "reason": o.reason, "est_price": round(float(prices.get(o.sym, 0.0)), 4)}
+    if not o.lot_ids:
+        return [{**base, "quantity": _floor6(o.qty)}]
+    lots = snapshot["tax_lots"]
+    alloc, left = [], o.qty
+    for i in o.lot_ids:                       # same consumption order as Ledger.sell(mode="specific")
+        if left <= 1e-9:
+            break
+        q = _floor6(min(float(lots[i]["quantity"]), left))
+        left -= q
+        if q > 0:
+            alloc.append((i, q))
+    rows = []
+    for k in range(0, len(alloc), MAX_LOTS_PER_ORDER):
+        part = alloc[k:k + MAX_LOTS_PER_ORDER]
+        rows.append({**base, "quantity": round(sum(q for _, q in part), 6),
+                     "lot_ids_internal": [i for i, _ in part],
+                     "tax_lots": [{"open_lot_id": lots[i].get("lot_id") or lots[i].get("open_lot_id"),
+                                   "quantity": f"{q:.6f}"} for i, q in part]})
+    return rows
+
+
+def _ref_id(as_of: str, phase: str, i: int, row: dict) -> str:
+    """Deterministic idempotency key: re-running the same plan re-sends the same ref_ids, so
+    the broker cannot place an order twice."""
+    size = row.get("quantity", row.get("dollars"))
+    return "ddi-" + hashlib.sha256(f"{as_of}|{phase}|{i}|{row['symbol']}|{row['side']}|{size}".encode()).hexdigest()[:24]
+
+
 def make_plan(snapshot: dict, bench_w: pd.Series, cfg: Config, state_path: Path, phase: str,
               guard: Guardrails, hist_returns: pd.DataFrame | None = None,
               own_account: str | None = None) -> dict:
@@ -142,20 +184,22 @@ def make_plan(snapshot: dict, bench_w: pd.Series, cfg: Config, state_path: Path,
         errs.append(f"quotes missing for {len(missing)} names = {missing_w:.1%} of index weight "
                     f"(> {guard.max_missing_weight:.0%}); refusing to plan on a partial snapshot")
     save_state(state_path, st, prev=saved)
+    rows = []
+    for o in orders:
+        if o.side == "sell":
+            rows += _sell_rows(o, snapshot, prices)
+        else:
+            rows.append({"symbol": o.sym, "side": "buy", "dollars": round(o.dollars, 2), "reason": o.reason,
+                         "est_price": round(float(prices.get(o.sym, 0.0)), 4)})
+    for i, r in enumerate(rows):
+        r["ref_id"] = _ref_id(snapshot["as_of"], phase, i, r)
+        if r["side"] == "sell" and "tax_lots" in r and any(t["open_lot_id"] is None for t in r["tax_lots"]):
+            errs.append(f"{r['symbol']}: specific-lot sell but the snapshot has no open_lot_id for a lot")
     body = {
         "as_of": snapshot["as_of"], "account_id": snapshot.get("account_id"), "phase": phase,
         "portfolio_value": round(value, 2), "cash": round(st.cash, 2),
         "missing_quotes": missing,
-        "orders": [
-            {"symbol": o.sym, "side": o.side,
-             **({"quantity": round(o.qty, 6)} if o.side == "sell" else {"dollars": round(o.dollars, 2)}),
-             "reason": o.reason,
-             "est_price": round(float(prices.get(o.sym, 0.0)), 4),
-             **({"lot_ids_internal": o.lot_ids} if o.lot_ids else {}),
-             **({"broker_lot_ids": [snapshot["tax_lots"][i].get("lot_id") for i in o.lot_ids]} if o.lot_ids else {}),
-             }
-            for o in orders
-        ],
+        "orders": rows,
         "guardrail_errors": errs,
         "config": {k: (sorted(v) if isinstance(v, frozenset) else v) for k, v in asdict(cfg).items()},
     }
@@ -175,9 +219,10 @@ def record_fills(plan: dict, fills: list[dict], snapshot: dict, state_path: Path
         if f["side"] != "sell":
             continue
         basis_ps = None
-        planned = next((o for o in plan["orders"] if o["symbol"] == f["symbol"] and o["side"] == "sell"), None)
-        if planned and planned.get("lot_ids_internal"):
-            ls = [snapshot["tax_lots"][i] for i in planned["lot_ids_internal"]]
+        ids = [i for o in plan["orders"] if o["symbol"] == f["symbol"] and o["side"] == "sell"
+               for i in o.get("lot_ids_internal", [])]
+        if ids:
+            ls = [snapshot["tax_lots"][i] for i in ids]
         else:
             ls = sorted(lots.get(f["symbol"], []), key=lambda t: -float(t["cost_per_share"]))
         if ls:

@@ -158,14 +158,22 @@ Keep Robinhood **Trade approvals ON** for the MCP account at first. Every order 
 your tap in the Robinhood app.
 
 ### Live, headless (experimental)
-`ddi mcp-tools` signs in with OAuth and dumps the real tool schemas. `ddi mcp-run --plan plan.json`
-only reviews orders; add `--place` to actually place them. The argument names in
-`ddi/broker/robinhood_mcp.py` are **unverified guesses** until you run `mcp-tools`.
+`ddi mcp-tools` signs in with OAuth and dumps the tool schemas. `ddi mcp-run --plan plan.json`
+only reviews orders; add `--place` to actually place them. Argument names were checked against
+the live schemas in Nov 2026; response parsing is still left to the agent workflow.
+
+### What the live MCP supports (checked Nov 2026)
+- **Specific-lot sells:** `tax_lots: [{open_lot_id, quantity}]`, at most 30 lots per order.
+  Plans carry this payload and split larger sells. Without it the broker sells FIFO.
+- **Idempotency:** `ref_id` on `place_equity_order`. Each plan row has a deterministic one, so
+  re-running a plan can't double-place.
+- **Fractional / dollar orders:** market, good-for-day, regular hours only.
+- **Trade approvals:** when on, placed orders wait for your tap in the Robinhood app.
+- Tax lots come one symbol per call, so a full snapshot is ~one call per holding.
 
 ## Things to set before going live
-- `lot_mode`: does `place_equity_order` accept specific lots? Check with `ddi mcp-tools`.
-  If it does, use `specific`. If not, set the account's default disposal method in the app
-  and match it here (`hifo` if offered, else `fifo`). In FIFO mode the engine harvests whole
+- `lot_mode`: `specific` (the default in `examples/config.json`). Robinhood's MCP accepts
+  specific lots. Use `fifo` only if lot selection ever fails; then the engine harvests whole
   positions only, so lot order can't matter.
 - `sleeve` (optional): if you enable it, pick an S&P ETF you do **not** sell at a loss anywhere else (e.g. SPLG or IVV).
 - `external_buys.json`: list buys of individual S&P stocks in other accounts (Wealthfront,
@@ -177,7 +185,7 @@ only reviews orders; add `--place` to actually place them. The argument names in
 ## Risks / limitations
 - **Bugs cost money.** The whole point of the 0.09% Wealthfront fee is someone else owns this
   risk. On $100k that fee is ~$90/yr.
-- MCP is **beta**. Rate limits, tool schemas and lot selection are undocumented. Many
+- MCP is **beta**. Rate limits are undocumented. Many
   small fractional orders may hit limits you can't see.
 - Backtest data is free Yahoo data:
   - ~25% of 2016 members (mostly delisted or acquired) have no prices.
