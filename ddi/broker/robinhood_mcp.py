@@ -169,7 +169,8 @@ class RobinhoodMCP:
                 size = {"dollars": f"{o['dollars']:.2f}"}
             review = await self.call("review_equity_order", **common, **size)
             rec = {"order": o, "review": review}
-            checks = review.get("order_checks") if isinstance(review, dict) else None
+            body = review.get("data", review) if isinstance(review, dict) else {}
+            checks = body.get("order_checks")          # {} when the broker has no alerts
             if place and checks:
                 rec["skipped"] = "review returned order_checks; not placing"
             elif place:

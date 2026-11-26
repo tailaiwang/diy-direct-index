@@ -20,10 +20,11 @@ Preconditions (check, don't assume):
 Build `~/.ddi/snapshot.json` in the schema documented at the top of `ddi/live.py`:
 - `get_portfolio` -> `buying_power` for the MCP account -> `cash`.
 - `get_equity_positions` (follow `cursor` pages) -> held symbols.
-- `get_equity_tax_lots` once per held symbol (one symbol per call; follow `cursor`). For each
-  lot write quantity (use `quantity_available`), cost per share, acquisition date, and the
-  lot's `open_lot_id` as `lot_id`. Specific-lot sells need it.
-- `get_equity_quotes` for every S&P 500 name in `ddi weights` plus the sleeve ETF. More than
+- `get_equity_tax_lots` once per held symbol (one symbol per call; follow `cursor`). Map each
+  lot: `quantity` <- `quantity_available`, `cost_per_share` <- `cost_per_share`,
+  `acquired` <- `open_date`, `lot_id` <- `open_lot_id`. Skip lots with `is_selectable: false`
+  (still syncing) or no `cost_per_share` (basis pending) and tell the user.
+- `get_equity_quotes` (price = `quote.last_trade_price`) for every S&P 500 name in `ddi weights` plus the sleeve ETF. More than
   20 symbols per call still returns quotes (closes are omitted, which is fine).
 - `get_equity_orders` with `created_at_gte` = 31 days ago and `state=filled` for **every**
   account in `get_accounts` (buys in your main account count for wash sales too). Put them in
@@ -38,7 +39,8 @@ Build `~/.ddi/snapshot.json` in the schema documented at the top of `ddi/live.py
 - For each order call `review_equity_order` with exactly the plan row: `type=market`,
   `time_in_force=gfd`, `market_hours=regular_hours`, `quantity` as a string, and the row's
   `tax_lots` array unchanged (without it Robinhood sells FIFO, which can realize gains instead
-  of the harvested loss). If `order_checks` is non-empty, stop and ask.
+  of the harvested loss). The result is under `data`; if `data.order_checks` is not `{}`, stop
+  and show the alert (e.g. `EQUITY_NOT_ENOUGH_BP_DOLLAR_BASED`).
 - Place with `place_equity_order` (same arguments plus the row's `ref_id`) only after the user
   says go, or if the user explicitly enabled autopilot in `~/.ddi/config.json`.
   With trade approvals on, this sends the order to the Robinhood app; the user approves it

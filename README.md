@@ -170,6 +170,16 @@ the live schemas in Nov 2026; response parsing is still left to the agent workfl
 - **Fractional / dollar orders:** market, good-for-day, regular hours only.
 - **Trade approvals:** when on, placed orders wait for your tap in the Robinhood app.
 - Tax lots come one symbol per call, so a full snapshot is ~one call per holding.
+- A first deployment is ~300 dollar-based buys at $10k (one review + one place each).
+
+### Wash-sale traps in your other accounts
+- **Dividend reinvestment (DRIP)** in another account is a purchase. Every DRIP buy of an
+  S&P name blocks harvesting that name here for 30 days. Consider turning DRIP off for
+  S&P stocks you hold elsewhere.
+- The engine only protects the MCP account. If you sell an S&P stock at a loss in your main
+  account, a buy of the same stock here within 30 days washes that loss. Don't harvest
+  manually elsewhere while this runs.
+- IRA purchases of a stock you harvested can permanently disallow the loss.
 
 ## Things to set before going live
 - `lot_mode`: `specific` (the default in `examples/config.json`). Robinhood's MCP accepts
